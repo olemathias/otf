@@ -91,6 +91,7 @@ Note: you should only use this for testing purposes.
 | resources | object | `{}` |  |
 | secret | string | `""` | Cryptographic secret. Must be a hex-encoded 16-byte string. See [docs](https://docs.otf.ninja/config/flags/#-secret). |
 | secretFromSecret | object | `{}` | Source cryptographic secret from a kubernetes secret instead. |
+| securityContext | object | `{}` | Set security context for the otfd container |
 | service.annotations | object | `{}` |  |
 | service.port | int | `80` | Service port for otf |
 | service.type | string | `"ClusterIP"` | Service type for otf |

@@ -24,7 +24,8 @@ RUN --mount=type=cache,target=/etc/apk/cache \
 
 # Create non-root user and group, which will be used in the final image. We
 # can't switch to it now, because the change only lasts until the end of the
-# stage.
+# stage. The final images refer to it by number: Kubernetes can only verify
+# runAsNonRoot against a numeric user.
 RUN adduser -D -u 4096 otf
 
 ARG TARGETPLATFORM
@@ -33,19 +34,19 @@ ARG TARGETPLATFORM
 # Final stage that takes the `base` stage and the `otfd` binary
 FROM base AS otfd
 COPY $TARGETPLATFORM/otfd /usr/local/bin/
-USER otf
+USER 4096:4096
 ENTRYPOINT ["/usr/local/bin/otfd"]
 
 # STAGE: otf-agent
 # Final stage that takes the `base` stage and the `otf-agent` binary
 FROM base AS otf-agent
 COPY $TARGETPLATFORM/otf-agent /usr/local/bin/
-USER otf
+USER 4096:4096
 ENTRYPOINT ["/usr/local/bin/otf-agent"]
 
 # STAGE: otf-job
 # Final stage that takes the `base` stage and the `otf-job` binary
 FROM base AS otf-job
 COPY $TARGETPLATFORM/otf-job /usr/local/bin/
-USER otf
+USER 4096:4096
 ENTRYPOINT ["/usr/local/bin/otf-job"]

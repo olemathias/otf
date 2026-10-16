@@ -163,6 +163,13 @@ Set a CPU limit for kubernetes jobs.
 
 Set a memory limit for kubernetes jobs.
 
+## `--kubernetes-restricted-pod-security`
+
+* System: `otfd`, `otf-agent`
+* Default: `false`
+
+Run kubernetes jobs with a security context that satisfies the [restricted pod security standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted). See [executors](../executors.md#kubernetes).
+
 ## `--kubernetes-labels`
 
 * System: `otfd`, `otf-agent`

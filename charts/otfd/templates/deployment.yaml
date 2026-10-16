@@ -165,6 +165,10 @@ spec:
                 fieldRef:
                   fieldPath: spec.serviceAccountName
             {{- include "runner.envs" . | nindent 12 }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
