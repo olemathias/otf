@@ -1,0 +1,67 @@
+name: ghcr
+on:
+  push:
+    branches:
+      - test/kube-executor-hostname
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Set variables
+        id: vars
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "version=kube-executor-hostname-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      - name: Build binaries
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          for arch in amd64 arm64; do
+            GOOS=linux GOARCH=$arch go build \
+              -ldflags "-s -w \
+                -X github.com/leg100/otf/internal.Version=${{ steps.vars.outputs.version }} \
+                -X github.com/leg100/otf/internal.Commit=${GITHUB_SHA} \
+                -X github.com/leg100/otf/internal.Built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              -o ./_build/linux/$arch/ \
+              ./cmd/otfd ./cmd/otf-job ./cmd/otf-agent
+          done
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push images
+        run: |
+          for target in otfd otf-agent otf-job; do
+            image="${{ steps.vars.outputs.registry }}/${target}"
+            docker buildx build \
+              --file Dockerfile \
+              --target "$target" \
+              --platform linux/amd64,linux/arm64 \
+              --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --tag "${image}:sha-${{ steps.vars.outputs.short_sha }}" \
+              --tag "${image}:kube-executor-hostname" \
+              --push \
+              ./_build/
+          done
+      - name: Summary
+        run: |
+          {
+            echo "### Images"
+            for target in otfd otf-agent otf-job; do
+              echo "- \`${{ steps.vars.outputs.registry }}/${target}:sha-${{ steps.vars.outputs.short_sha }}\`"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
