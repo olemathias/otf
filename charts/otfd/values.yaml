@@ -132,6 +132,13 @@ podAnnotations: {}
 podSecurityContext: {}
   # fsGroup: 2000
 
+# -- Set security context for the otfd container
+securityContext: {}
+  # allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #   - ALL
+
 service:
   # -- Service type for otf
   type: ClusterIP

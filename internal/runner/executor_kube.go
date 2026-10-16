@@ -81,6 +81,9 @@ type kubeConfig struct {
 	ServiceAccount string
 	CachePVC       string
 	TTLAfterFinish time.Duration
+	// RestrictedPodSecurity sets a security context on jobs that satisfies
+	// the "restricted" pod security standard.
+	RestrictedPodSecurity bool
 
 	requestCPU    k8sresource.Quantity
 	requestMemory k8sresource.Quantity
@@ -104,6 +107,7 @@ type kubeConfigFlags struct {
 func registerKubeFlags(flags *pflag.FlagSet, cfg *kubeConfig) {
 	flags.StringVar(&cfg.Image, "kubernetes-job-image", cfg.Image, "Image to use for kubernetes jobs.")
 	flags.DurationVar(&cfg.TTLAfterFinish, "kubernetes-ttl-after-finish", cfg.TTLAfterFinish, "Delete finished kubernetes job after this duration.")
+	flags.BoolVar(&cfg.RestrictedPodSecurity, "kubernetes-restricted-pod-security", cfg.RestrictedPodSecurity, "Run kubernetes jobs with a security context that satisfies the restricted pod security standard.")
 	flags.StringVar(&cfg.flags.RequestCPU, "kubernetes-request-cpu", cfg.flags.RequestCPU, "Requested CPU for kubernetes job.")
 	flags.StringVar(&cfg.flags.RequestMemory, "kubernetes-request-memory", cfg.flags.RequestMemory, "Requested memory for kubernetes job.")
 	flags.StringVar(&cfg.flags.LimitCPU, "kubernetes-limit-cpu", cfg.flags.LimitCPU, "CPU limit for kubernetes job.")
@@ -362,6 +366,23 @@ func (s *kubeExecutor) SpawnOperation(ctx context.Context, _ *errgroup.Group, jo
 		spec.Spec.Template.Spec.Volumes[0].VolumeSource = corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: s.Config.CachePVC,
+			},
+		}
+	}
+	if s.Config.RestrictedPodSecurity {
+		// Satisfy the "restricted" pod security standard, so that jobs can
+		// run in namespaces that enforce it. The job image must run as a
+		// numeric, non-root user.
+		spec.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+			RunAsNonRoot: new(true),
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		}
+		spec.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			AllowPrivilegeEscalation: new(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
 			},
 		}
 	}

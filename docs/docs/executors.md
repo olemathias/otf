@@ -29,5 +29,8 @@ There are a number of flags that customise the jobs:
 * [`--kubernetes-request-cpu`](config/flags.md#-kubernetes-request-cpu)
 * [`--kubernetes-request-memory`](config/flags.md#-kubernetes-request-memory)
 * [`--kubernetes-ttl-after-finish`](config/flags.md#-kubernetes-ttl-after-finish)
+* [`--kubernetes-restricted-pod-security`](config/flags.md#-kubernetes-restricted-pod-security)
+
+To run jobs in a namespace that enforces the [restricted pod security standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), set `--kubernetes-restricted-pod-security`. Jobs then run as a non-root user, with no privilege escalation, no capabilities and the runtime's default seccomp profile. A custom job image set with `--kubernetes-job-image` must then run as a non-root user, specified numerically, e.g. `USER 4096:4096`.
 
 It's advisable to provide a persistent volume for the cache. Otherwise the terraform or tofu binary is downloaded at the beginning of every job. See the helm chart settings to enable the persistent volume claim. You will need to make available a persistent volume that supports the [ReadWriteMany](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) access mode.

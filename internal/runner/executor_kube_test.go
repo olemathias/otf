@@ -123,6 +123,47 @@ func TestKubeExecutor_SpawnOperation(t *testing.T) {
 	assert.Equal(t, wantLabels, jobsClient.job.Labels)
 	assert.Equal(t, wantLabels, secretsClient.secret.Labels)
 	assert.Equal(t, map[string]string{"jobToken": "token"}, secretsClient.secret.StringData)
+
+	// No security context unless restricted pod security is enabled.
+	pod := jobsClient.job.Spec.Template.Spec
+	assert.Nil(t, pod.SecurityContext)
+	require.Len(t, pod.Containers, 1)
+	assert.Nil(t, pod.Containers[0].SecurityContext)
+
+	t.Run("restricted pod security", func(t *testing.T) {
+		cfg := defaultKubeConfig
+		cfg.RestrictedPodSecurity = true
+
+		executor, err := newKubeExecutor(
+			logr.Discard(),
+			defaultOperationConfig(),
+			cfg,
+		)
+		require.NoError(t, err)
+
+		jobsClient := &fakeJobsClient{}
+		executor.jobs = jobsClient
+		executor.secrets = &fakeSecretsClient{}
+
+		err = executor.SpawnOperation(t.Context(), nil, job, []byte("token"))
+		require.NoError(t, err)
+
+		pod := jobsClient.job.Spec.Template.Spec
+		assert.Equal(t, &corev1.PodSecurityContext{
+			RunAsNonRoot: new(true),
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		}, pod.SecurityContext)
+
+		require.Len(t, pod.Containers, 1)
+		assert.Equal(t, &corev1.SecurityContext{
+			AllowPrivilegeEscalation: new(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+		}, pod.Containers[0].SecurityContext)
+	})
 }
 
 type fakeSecretsClient struct {
