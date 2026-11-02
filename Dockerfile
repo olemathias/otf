@@ -45,8 +45,17 @@ USER 4096:4096
 ENTRYPOINT ["/usr/local/bin/otf-agent"]
 
 # STAGE: otf-job
-# Final stage that takes the `base` stage and the `otf-job` binary
-FROM base AS otf-job
+# Final stage with the `otf-job` binary. Debian, not the alpine `base`: a job
+# runs the providers, and a provider that is linked against glibc and its
+# libraries does not load with gcompat. The Ceph client libraries are for
+# providers that manage a Ceph cluster, such as gathering/ceph.
+FROM debian:trixie-slim AS otf-job
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+    ca-certificates git openssh-client librados2 librbd1 && \
+  rm -rf /var/lib/apt/lists/* && \
+  useradd --uid 4096 --user-group --create-home otf
+ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/otf-job /usr/local/bin/
 USER 4096:4096
 ENTRYPOINT ["/usr/local/bin/otf-job"]
