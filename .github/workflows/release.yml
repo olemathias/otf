@@ -18,12 +18,25 @@ jobs:
           go-version-file: "go.mod"
       - name: Vet
         run: go vet ./...
-      # The kube executor tests need a cluster to load a config from.
-      - uses: helm/kind-action@v1.13.0
-        with:
-          cluster_name: kind
+      # The kube executor tests load ~/.kube/config but never connect, so a
+      # config that points nowhere is enough.
       - name: Test the runner
-        run: go test ./internal/runner/... ./cmd/...
+        run: |
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'EOF'
+          apiVersion: v1
+          kind: Config
+          clusters:
+            - name: none
+              cluster:
+                server: https://127.0.0.1:1
+          contexts:
+            - name: none
+              context:
+                cluster: none
+          current-context: none
+          EOF
+          go test ./internal/runner/... ./cmd/...
       - name: Build binaries
         env:
           CGO_ENABLED: "0"
