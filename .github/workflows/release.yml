@@ -18,6 +18,10 @@ jobs:
           go-version-file: "go.mod"
       - name: Vet
         run: go vet ./...
+      # The kube executor tests need a cluster to load a config from.
+      - uses: helm/kind-action@v1.13.0
+        with:
+          cluster_name: kind
       - name: Test the runner
         run: go test ./internal/runner/... ./cmd/...
       - name: Build binaries
